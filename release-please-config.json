@@ -1,0 +1,20 @@
+{
+  "bootstrap-sha": "",
+  "release-type": "go",
+  "packages": {
+    ".": {}
+  },
+  "changelog-types": [
+    {"type": "feat", "section": "Features"},
+    {"type": "fix", "section": "Bug Fixes"},
+    {"type": "perf", "section": "Performance"},
+    {"type": "refactor", "section": "Refactoring"},
+    {"type": "docs", "section": "Documentation"},
+    {"type": "test", "section": "Tests"},
+    {"type": "build", "section": "Build System"},
+    {"type": "ci", "section": "CI"},
+    {"type": "chore", "section": "Chores"}
+  ],
+  "bump-minor-pre-major": true,
+  "include-v-in-tag": true
+}

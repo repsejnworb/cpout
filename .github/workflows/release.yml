@@ -1,34 +1,118 @@
-name: Release (actions-driven)
+name: release-please
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
-  build-and-release:
+  release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+      upload_url: ${{ steps.rp.outputs.upload_url }}
     steps:
-      - name: Checkout the tagged commit
+      - name: Run release-please
+        id: rp
+        uses: google-github-actions/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  build:
+    name: Build (${{
+      matrix.goos }}/${{ matrix.goarch }})
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS
+          - goos: darwin
+            goarch: amd64
+            runner: macos-14
+            archive: tar.gz
+          - goos: darwin
+            goarch: arm64
+            runner: macos-14
+            archive: tar.gz
+          # Linux
+          - goos: linux
+            goarch: amd64
+            runner: ubuntu-latest
+            archive: tar.gz
+          - goos: linux
+            goarch: arm64
+            runner: ubuntu-latest
+            archive: tar.gz
+
+    steps:
+      - name: Checkout tag (from release-please)
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ needs.release-please.outputs.tag_name }}
 
-      - name: Build zip from tag
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          check-latest: true
+
+      - name: Build & Package
+        shell: bash
         run: |
-          VER="${GITHUB_REF_NAME}"
-          mkdir -p dist
-          git archive --format=zip --prefix=cpout/ -o "dist/cpout-${VER}.zip" "${VER}" cpout.plugin.zsh _cpout
-          (cd dist && sha256sum "cpout-${VER}.zip" > "cpout-${VER}.zip.sha256")
+          set -euo pipefail
+          TAG="${{ needs.release-please.outputs.tag_name }}"   # e.g. v1.0.2
+          VER="${TAG#v}"
 
-      - name: Create/Update GitHub Release (attach assets)
+          BINDIR="build/${{ matrix.goos }}-${{ matrix.goarch }}"
+          mkdir -p "$BINDIR" dist
+
+          BIN="cpout"
+          [[ "${{ matrix.goos }}" == "windows" ]] && BIN="cpout.exe"
+
+          LDFLAGS="-s -w -X github.com/repsejnworb/cpout/internal/version.version=${TAG}"
+
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 \
+            go build -trimpath -ldflags "$LDFLAGS" -o "$BINDIR/$BIN" ./cmd/... .
+
+          ART="cpout_${VER}_${{ matrix.goos }}_${{ matrix.goarch }}"
+          tar -C "$BINDIR" -czf "dist/${ART}.tar.gz" "$BIN"
+          (cd dist && (shasum -a 256 "${ART}.tar.gz" || sha256sum "${ART}.tar.gz") > "${ART}.tar.gz.sha256")
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpout-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+
+  release-assets:
+    name: Upload assets to GitHub Release
+    runs-on: ubuntu-latest
+    needs: [release-please, build]
+    if: needs.release-please.outputs.release_created == 'true'
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cpout-*
+          merge-multiple: true
+          path: dist
+
+      - name: Publish assets to release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/cpout-*.zip
-            dist/cpout-*.zip.sha256
-          # uncomment to mark prereleases:
-          # prerelease: true
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          files: dist/*
+          fail_on_unmatched_files: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
