@@ -1,4 +1,4 @@
-name: Release
+name: Release (actions-driven)
 
 on:
   push:
@@ -9,18 +9,23 @@ jobs:
   build-and-release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout the tagged commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
 
-      - name: Build zip
+      - name: Build zip from tag
         run: |
-          VER=${GITHUB_REF_NAME}
+          VER="${GITHUB_REF_NAME}"
           mkdir -p dist
-          zip -r "dist/cpout-$VER.zip" cpout.plugin.zsh _cpout
-          (cd dist && sha256sum "cpout-$VER.zip" > "cpout-$VER.zip.sha256")
+          git archive --format=zip --prefix=cpout/ -o "dist/cpout-${VER}.zip" "${VER}" cpout.plugin.zsh _cpout
+          (cd dist && sha256sum "cpout-${VER}.zip" > "cpout-${VER}.zip.sha256")
 
-      - name: Publish GitHub Release
+      - name: Create/Update GitHub Release (attach assets)
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/cpout-*.zip
             dist/cpout-*.zip.sha256
+          # uncomment to mark prereleases:
+          # prerelease: true
