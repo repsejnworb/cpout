@@ -1,0 +1,35 @@
+# -------------------------------------------------------------
+# Universal text normalization (consistent diffs across OSes)
+# -------------------------------------------------------------
+*           text=auto eol=lf
+
+# Explicit LF for common text files
+*.md        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.cue       text eol=lf
+*.sh        text eol=lf
+*.zsh       text eol=lf linguist-language=Zsh
+
+# The completion file has no extension; tell linguist it's Zsh
+/_cpout     text eol=lf linguist-language=Zsh
+
+# Generated/build artifacts
+dist/**                 linguist-generated
+*.zip                   binary
+*.tar                   binary
+*.tar.gz                binary
+*.tgz                   binary
+*.sha256                text eol=lf
+
+# Keep GitHub noise out of language stats
+.github/**              linguist-vendored
+
+# Files to exclude from `git archive` (export-ignore)
+# (Not strictly necessary for your release flow since you archive specific files,
+#  but useful for generic archives.)
+.github/                export-ignore
+.gitignore              export-ignore
+.gitattributes          export-ignore
+tools/                  export-ignore
