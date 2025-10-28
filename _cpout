@@ -1,0 +1,18 @@
+# zsh completion for cpout
+_arguments \
+  '-S[stdout only]' \
+  '-q[copy only (silent)]' \
+  '-c[include command header (default)]' \
+  '-N[do not include command header]' \
+  '-m[copy as fenced code block (no language)]' \
+  '-M+[copy as fenced code block with language]:language:(bash zsh python cue json yaml)' \
+  '-t+[truncate to N lines]:lines' \
+  '-h[show help]' \
+  '*::command:->cmd'
+
+case $state in
+  (cmd)
+    # fallback: complete executable commands after flags
+    _command_names -e
+    ;;
+esac
