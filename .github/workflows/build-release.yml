@@ -1,0 +1,55 @@
+name: Build release assets
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
+          cache: true
+
+      - name: Build (macOS + Linux)
+        run: |
+          set -euo pipefail
+          ver="${{ github.event.release.tag_name }}"
+          ver="${ver#v}"
+
+          mkdir -p dist
+
+          # macOS arm64
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X main.version=${ver}" -o dist/cpout ./cmd/cpout
+          tar -C dist -czf "dist/cpout_darwin_arm64.tar.gz" cpout
+          rm dist/cpout
+
+          # macOS amd64
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X main.version=${ver}" -o dist/cpout ./cmd/cpout
+          tar -C dist -czf "dist/cpout_darwin_amd64.tar.gz" cpout
+          rm dist/cpout
+
+          # Linux arm64
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X main.version=${ver}" -o dist/cpout ./cmd/cpout
+          tar -C dist -czf "dist/cpout_linux_arm64.tar.gz" cpout
+          rm dist/cpout
+
+          # Linux amd64
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.version=${ver}" -o dist/cpout ./cmd/cpout
+          tar -C dist -czf "dist/cpout_linux_amd64.tar.gz" cpout
+          rm dist/cpout
+
+      - name: Upload assets to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/cpout_*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
