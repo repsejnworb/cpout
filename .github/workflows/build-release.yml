@@ -1,15 +1,18 @@
 name: Build release assets
 
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ["release-please"]
+    types: [completed]
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  build-and-upload:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -18,12 +21,22 @@ jobs:
           go-version: '1.22.x'
           cache: true
 
+      - name: Resolve latest release tag
+        id: rel
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Get the most recent published release (the one release-please just made)
+          TAG="$(gh api repos/${{ github.repository }}/releases/latest --jq .tag_name)"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
       - name: Build (macOS + Linux)
         run: |
           set -euo pipefail
-          ver="${{ github.event.release.tag_name }}"
-          ver="${ver#v}"
-
+          ver="${{ steps.rel.outputs.version }}"
           mkdir -p dist
 
           # macOS arm64
@@ -46,9 +59,10 @@ jobs:
           tar -C dist -czf "dist/cpout_linux_amd64.tar.gz" cpout
           rm dist/cpout
 
-      - name: Upload assets to release
+      - name: Upload assets to the release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.rel.outputs.tag }}
           files: |
             dist/cpout_*.tar.gz
         env:
