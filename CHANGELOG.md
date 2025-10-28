@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/repsejnworb/cpout/compare/v1.0.0...v1.0.1) (2025-10-28)
+
+
+### Bug Fixes
+
+* Events created by a workflow that uses GITHUB_TOKEN don’t trigger other workflows. ([50e25d5](https://github.com/repsejnworb/cpout/commit/50e25d57c721c0c977038125d968908cfa0bacb0))
+
 ## 1.0.0 (2025-10-28)
 
 
