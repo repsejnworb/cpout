@@ -1,4 +1,4 @@
-name: Release (actions-driven)
+name: Release
 
 on:
   push:
@@ -9,26 +9,93 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
-    runs-on: ubuntu-latest
+  build:
+    name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS
+          - goos: darwin
+            goarch: amd64
+            runner: macos-14
+            archive: tar.gz
+          - goos: darwin
+            goarch: arm64
+            runner: macos-14
+            archive: tar.gz
+          # Linux
+          - goos: linux
+            goarch: amd64
+            runner: ubuntu-latest
+            archive: tar.gz
+          - goos: linux
+            goarch: arm64
+            runner: ubuntu-latest
+            archive: tar.gz
+
     steps:
-      - name: Checkout the tagged commit
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
 
-      - name: Build zip from tag
-        run: |
-          VER="${GITHUB_REF_NAME}"
-          mkdir -p dist
-          git archive --format=zip --prefix=cpout/ -o "dist/cpout-${VER}.zip" "${VER}" cpout.plugin.zsh _cpout
-          (cd dist && sha256sum "cpout-${VER}.zip" > "cpout-${VER}.zip.sha256")
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          check-latest: true
 
-      - name: Create/Update GitHub Release (attach assets)
+      - name: Build & Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER="${GITHUB_REF_NAME}" # e.g. v1.0.3
+          BINDIR="build/${{ matrix.goos }}-${{ matrix.goarch }}"
+          mkdir -p "$BINDIR" dist
+
+          BIN="cpout"
+          if [[ "${{ matrix.goos }}" == "windows" ]]; then
+            BIN="cpout.exe"
+          fi
+
+          LDFLAGS="-s -w -X github.com/repsejnworb/cpout/internal/version.version=${VER}"
+
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 \
+            go build -trimpath -ldflags "$LDFLAGS" -o "$BINDIR/$BIN" ./cmd/... .
+
+          ART="cpout_${VER#v}_${{ matrix.goos }}_${{ matrix.goarch }}"
+          case "${{ matrix.archive }}" in
+            tar.gz)
+              tar -C "$BINDIR" -czf "dist/${ART}.tar.gz" "$BIN"
+              (cd dist && shasum -a 256 "${ART}.tar.gz" > "${ART}.tar.gz.sha256" || sha256sum "${ART}.tar.gz" > "${ART}.tar.gz.sha256")
+              ;;
+          esac
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpout-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cpout-*
+          merge-multiple: true
+          path: dist
+
+      - name: Publish GitHub Release (single upload)
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/cpout-*.zip
-            dist/cpout-*.zip.sha256
-          # uncomment to mark prereleases:
-          # prerelease: true
+          files: dist/*
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
