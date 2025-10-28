@@ -1,3 +1,11 @@
+# -----------------------------------------------------------------------------
+# Oh My Zsh Plugin: cpout
+# Author: Jesper “Repsej” Brown (https://github.com/repsejnworb)
+# Description: Run a command, print its output, and copy it to the clipboard.
+#              Supports code-fenced markdown, truncation, and header control.
+# Version: 1.0.0
+# License: MIT
+# -----------------------------------------------------------------------------
 # cpout — run a command and copy its output to the clipboard
 # https://github.com/repsejnworb/cpout
 
