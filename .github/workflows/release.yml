@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build zip
+        run: |
+          VER=${GITHUB_REF_NAME}
+          mkdir -p dist
+          zip -r "dist/cpout-$VER.zip" cpout.plugin.zsh _cpout
+          (cd dist && sha256sum "cpout-$VER.zip" > "cpout-$VER.zip.sha256")
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/cpout-*.zip
+            dist/cpout-*.zip.sha256
