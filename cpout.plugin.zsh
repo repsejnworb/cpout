@@ -1,20 +1,8 @@
 # -----------------------------------------------------------------------------
-# Oh My Zsh Plugin: cpout
-# Author: Jesper “Repsej” Brown (https://github.com/repsejnworb)
-# Description: Run a command, print its output, and copy it to the clipboard.
-#              Supports code-fenced markdown, truncation, and header control.
-# Version: 1.0.0
-# License: MIT
+# name: cpout
+# repo: github.com/repsejnworb/cpout
+# description: Copy command output to the clipboard with optional markdown fencing.
 # -----------------------------------------------------------------------------
-# cpout — run a command and copy its output to the clipboard
-# https://github.com/repsejnworb/cpout
-
-# ---------- FLAG SPEC (single source of truth) ----------
-# Format per line: short|long|requiredArg|description
-# short: single letter (h, S, q, ...)
-# long:  long name without leading dashes (or '-' if none)
-# requiredArg: 'arg' if option takes an argument, '-' otherwise
-# description: free text shown in help & completion
 typeset -a CP_FLAG_SPEC=(
   'S|-|-|stdout only (exclude stderr)'
   'q|-|-|copy only (no terminal print)'
