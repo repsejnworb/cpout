@@ -90,7 +90,7 @@ _cpout_long_to_short() {
       out+=("$a")
     fi
   done
-  print -l -- "${out[@]}"
+  print -r -l -- "${out[@]}"
 }
 
 # ---------- Main function ----------
@@ -103,7 +103,8 @@ cpout() {
 
   # Translate long options → short using spec, then use getopts
   local -a argv_translated
-  argv_translated=("$(_cpout_long_to_short "$@")")
+  # split the command-substitution output on NEWLINES into array items
+  argv_translated=("${(@f)$(_cpout_long_to_short "$@")}")
   set -- "${argv_translated[@]}"
 
   local opt
